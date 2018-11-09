@@ -21,7 +21,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-
 #define MAXLEN 20
 #define MINLEN 6
 
@@ -29,59 +28,24 @@
 #define CFLAGLOWER	0x0010
 #define CFLAGNUM	0x0100
 
-
-/*
- * 1. 由至少6个，至多20个字符组成。
- */
-int checkLens(int slen){
-	    if (slen > MAXLEN)
-			return slen - MAXLEN;
-		if (slen < MINLEN)
-			return slen - MINLEN;
-		return 0;
+int maxn(int p1, int p2)
+{
+	return p1>p2?p1:p2;
 }
 
-void checkCharactor(char b, int* cflag)
+void bubble_sort(int a[], int n)
 {
-	if ( b >= 'a' && b <= 'z') {
-		*cflag |= CFLAGLOWER;
-		return ;
-	}
-	if ( b >= 'A' && b <= 'Z') {
-		*cflag |= CFLAGUPPER;
-		return ;
-	}
-	if ( b >= '0' && b <= '9') {
-		*cflag |= CFLAGNUM;
-		return ;
-	}
-}
-
-int checkRepChar(char *b, int slen)
-{
-	char *ptr = b;
-	int repCharCnt = 0;
-	slen -= 2;
-	while (slen > 0 ) {
-		if (( *ptr >= 'a' && *ptr <= 'z')
-		|| ( *ptr >= 'A' && *ptr <= 'Z')
-		|| ( *ptr >= '0' && *ptr <= '9')) {
-			if (*ptr==*(ptr+1) && *ptr==*(ptr+2)) {
-				repCharCnt++;
-				ptr += 3;
-				slen -= 3;
-			}
-			else {
-				ptr++;
-				slen--;
+	int i, j, temp;
+	for (j = 0; j < n - 1; j++)
+		for (i = 0; i < n - 1 - j; i++)
+		{
+			if(a[i] > a[i + 1] || a[i]==0)
+			{
+				temp = a[i];
+				a[i] = a[i + 1];
+				a[i + 1] = temp;
 			}
 		}
-		else {
-			ptr++;
-			slen--;
-			}
-	}
-	return repCharCnt;
 }
 
 int strongPasswordChecker(char* s) {
@@ -91,103 +55,138 @@ int strongPasswordChecker(char* s) {
 	int lenbet = 0;
 	int cflag = 0;
 	int repcnt = 0;
-
-	// 获取长度差
-	lenbet = checkLens(slen);
-
-	// 获取重复子串数量
-	if (slen > 2)
-		repcnt = checkRepChar(s, slen);
-
-	// 0. 长度不足，且至少需要补足3个的，直接返回缺少的长度
-	//if (lenbet <= -3)
-	if (lenbet <0)
-		return repcnt-lenbet;
-
+	int repblock[100] = {0};
+	int blkcnt = 1;	// rep block length
+	int j = 0;
 
 	// 记录字符大小写、数字的情况
 	for (i=0; i<slen; i++) {
-		checkCharactor(s[i], &cflag);
-		if ((cflag & CFLAGUPPER)
-			&& (cflag & CFLAGLOWER)
-			&& (cflag & CFLAGNUM)){
-			charisfull = 0;
+		char b = s[i];
+		if ( b >= 'a' && b <= 'z') {
+			cflag |= CFLAGLOWER;
+		}
+		if ( b >= 'A' && b <= 'Z') {
+			cflag |= CFLAGUPPER;
+		}
+		if ( b >= '0' && b <= '9') {
+			cflag |= CFLAGNUM;
+		}
+
+		if (s[i] == s[i-1]) {
+			blkcnt++;
+		}
+		else {
+			if (blkcnt >= 3) {
+				repcnt += blkcnt/3;
+				repblock[j] = blkcnt;
+				j++;
+			}
+			blkcnt = 1;
+		}
+	}
+	if (blkcnt >= 3) {
+		repcnt += blkcnt/3;
+		repblock[j] = blkcnt;
+		j++;
+	}
+
+	if (cflag & CFLAGUPPER)
+		charisfull--;
+	if (cflag & CFLAGLOWER)
+		charisfull--;
+	if (cflag & CFLAGNUM)
+		charisfull--;
+
+	if (slen < MINLEN) {
+		return maxn(charisfull, maxn((MINLEN-slen), repcnt));
+	}
+
+	if (slen <= MAXLEN) {
+		return maxn(charisfull, repcnt);
+	}
+
+	bubble_sort(repblock, j);
+
+	int chgrep = 0;
+	int overlen = slen-MAXLEN;
+	for (int nn1 = 0; nn1<j+1; nn1++) {
+		if (repblock[nn1] == 0 )
 			break;
+		if (repblock[nn1]%3 == 0 ) {
+			int tempa = repblock[nn1]%3+1;
+			if (overlen > tempa) {
+				overlen -= tempa;
+				repblock[nn1] -= tempa;
+			}
+			else {
+				repblock[nn1] -= overlen;
+				overlen = 0;
+				break;
+			}
+		}
+	}
+	for (int nn1 = 0; nn1<j+1; nn1++) {
+		if (repblock[nn1] == 0 )
+			break;
+		if (repblock[nn1]%3 == 1) {
+			int tempa = repblock[nn1]%3+1;
+			if (overlen > tempa) {
+				overlen -= tempa;
+				repblock[nn1] -= tempa;
+			}
+			else {
+				repblock[nn1] -= overlen;
+				overlen = 0;
+				break;
+			}
 		}
 	}
 
-	if (charisfull){
-		if (cflag & CFLAGUPPER)
-			charisfull--;
-		if (cflag & CFLAGLOWER)
-			charisfull--;
-		if (cflag & CFLAGNUM)
-			charisfull--;
-	}
-
-
-	// 分情况判断最终结果
-	// 1. 比规定要长
-	if (lenbet > 0) {
-		if (repcnt*3 < lenbet)
-			return lenbet + charisfull;
-		else
-		{
-			int tmp = (repcnt*3-lenbet)/3+1;
-			int tmp2 = lenbet + charisfull;
-			return tmp > tmp2 ? tmp:tmp2;
+	for (int nn1 = 0; nn1<j+1; nn1++) {
+		int tmp = ((repblock[nn1] - 2) / 3) * 3;
+		if(overlen != 0 && overlen >= tmp) 
+			overlen -= tmp;
+		else {
+			chgrep += (repblock[nn1] - overlen) / 3;
+			overlen = 0;
 		}
 	}
-	
-	// 2. 比规定短
-	if (lenbet < 0)
-		return (abs(lenbet)<charisfull ? charisfull: abs(lenbet))+repcnt;
 
-	// 3. 在规定长度内
-	return charisfull>repcnt ? charisfull : repcnt;
+	return slen - MAXLEN + maxn(charisfull, chgrep);
+}
+
+void printif(char* p1, int n2)
+{
+	int n1 = strongPasswordChecker(p1);
+	if (n1 != n2)
+		printf("%s, %d, %d\n", p1, n1, n2);
 }
 
 int main(int argc, char** argv)
 {
-//	printf("%d\n", strongPasswordChecker(""));	// 6
-//	printf("%d\n", strongPasswordChecker("..."));	// 3
-//	printf("%d\n", strongPasswordChecker("a"));	// 5
-//	printf("%d\n", strongPasswordChecker("aaaaa"));	// 2
-//	printf("%d\n", strongPasswordChecker("aaa111"));	// 2
-//	printf("%d\n", strongPasswordChecker("Aa1aclsdwegsadkjfasgAAAAAAA"));	// 7
-//	
-//	printf("%d\n", strongPasswordChecker("Ab1acc"));	// 0
-//	printf("%d\n", strongPasswordChecker("Abaacc"));	// 1
-//	printf("%d\n", strongPasswordChecker("abaacc"));	// 2
-//	printf("%d\n", strongPasswordChecker("aaaaaaaaaaaaaaaaaaaa"));	// 6
-//	printf("%d\n", strongPasswordChecker("aaaaaaaaaaaaaaaaaaaa"));	// 6
-//	printf("%d\n", strongPasswordChecker("aaaaaaaaaaaaaaaaaaaA"));	// 6
-//	printf("%d\n", strongPasswordChecker("aaaaaaaaaaaaaaaaaa3A"));	// 6
-//	printf("%d\n", strongPasswordChecker("aaaaaaaaaaaaaaaaa"));	// 5
-//	printf("%d\n", strongPasswordChecker("aaaaaaaaaaaaaaaaA"));	// 5
-//	printf("%d\n", strongPasswordChecker("aaaaaaaaaaaaaaa3A"));	// 5
-//	printf("%d\n", strongPasswordChecker("aaaaaaaaaaaaaaaaaaaaa"));	// 7
+	printif("",										 6);
+	printif("...",									 3);
+	printif("a",									 5);
+	printif("aaaaa",								 2);
+	printif("aaa111",								 2);
+	printif("Aa1aclsdwegsadkjfasgAAAAAAA",			 7);
+	printif("Ab1acc",								 0);
+	printif("Abaacc",								 1);
+	printif("abaacc",								 2);
+	printif("aaaaaaaaaaaaaaaaaaaa",					 6);
+	printif("aaaaaaaaaaaaaaaaaaaa",					 6);
+	printif("aaaaaaaaaaaaaaaaaaaA",					 6);
+	printif("aaaaaaaaaaaaaaaaaa3A",					 6);
+	printif("aaaaaaaaaaaaaaaaa",					 5);
+	printif("aaaaaaaaaaaaaaaaA",					 5);
+	printif("aaaaaaaaaaaaaaa3A",					 5);
+	printif("aaaaaaaaaaaaaaaaaaaaa",				 7);
+	printif("1234567890123456Baaaaa",				 3);
+	printif("aaaabbaaabbaaa123456A",				 3);
+	printif("aaaaaa1234567890123Ubefg",				 4);
 	
-	printf("%d\n", strongPasswordChecker("1234567890123456Baaaaa"));	// 3
+	printif("aaaabaaaaaa123456789F",				 3);
 
-//	printf("%d\n", strongPasswordChecker("aaaaaaaaaaaaaaaaaaaaa"));	// 3
-//	printf("%d\n", strongPasswordChecker("aaaaaaaaaaaaaaaaaaaaA"));	// 2
-//	printf("%d\n", strongPasswordChecker("aaaaaaaaaaaaaaaaaaa3A"));	// 1
-//	printf("%d\n", strongPasswordChecker("aaaaaaaaaaaaaaaaaaaaaaaa"));	// 6
-//	printf("%d\n", strongPasswordChecker("aaaaaaaaaaaaaaaaaaaaaaaA"));	// 5
-//	printf("%d\n", strongPasswordChecker("aaaaaaaaaaaaaaaaaaaaaa3A"));	// 4
-
-//	printf("%d\n", strongPasswordChecker("Abc"));	// 3
-//	printf("%d\n", strongPasswordChecker("Ab1"));	// 3
-//	printf("%d\n", strongPasswordChecker("abc"));	// 3
-//	printf("%d\n", strongPasswordChecker("a"));		// 5
-
-//	printf("%d\n", strongPasswordChecker("Ab1c"));	// 2
-//	printf("%d\n", strongPasswordChecker("Abcc"));	// 2
-//	printf("%d\n", strongPasswordChecker("aabc"));	// 2
-//	printf("%d\n", strongPasswordChecker("aaaaa"));		// 2
-//	printf("%d\n", strongPasswordChecker("Aaaaa"));		// 1
-//	printf("%d\n", strongPasswordChecker("Aa1aa"));		// 1
 
 	return 0;
 }
